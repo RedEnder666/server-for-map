@@ -4,14 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flask Map Example</title>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=281ea2a1-7359-430c-89dd-4afb83da5b20&lang=ru_RU" type="text/javascript"></script>
 </head>
 <body>
+    <div id="map" style="width: 400px; height: 800px;"></div>
+    <div id="markerIndexDisplay"></div> <!-- Добавленный div для отображения индекса маркера -->
 
-<h1>My Flask Map Page</h1>
+    <script type="text/javascript">
+        ymaps.ready(init);
 
-<div>
-    <script type="text/javascript" charset="utf-8" async src="https://api-maps.yandex.ru/services/constructor/1.0/js/?um=constructor%3A2669c26337d3fc710c3ef122263b7f0476a41a84b0c5c0b5e99f4733d414716c&amp;width=500&amp;height=1000&amp;lang=ru_RU&amp;scroll=true"></script>
-</div>
+        var markers = []; // Массив для хранения ссылок на маркеры
 
+        function removeMarker(index) {
+            var map = myMap;
+            var userMarker = markers[index];
+
+            if (userMarker) {
+                map.geoObjects.remove(userMarker);
+                markers[index] = null; // Обнуляем ссылку на маркер в массиве
+            } else {
+                console.warn('User marker not found on the map.');
+            }
+        }
+
+        var myMap;
+
+        function init() {
+            myMap = new ymaps.Map("map", {
+                center: [54.780461, 32.046122],
+                zoom: 15
+            });
+
+            {% for data in map_data %}
+            var myPlacemark = new ymaps.Placemark(
+                [{{ data.latitude }}, {{ data.longitude }}], {
+                    hintContent: '{{ data.hint }}',
+                    balloonContent: '{{ data.balloon }}',
+                    question: '{{ data.question }}',
+                    options: {{ data.options|tojson|safe }},
+                    rightIndex: {{ data.rightind }},
+                    index: {{ data.ind }}
+                }, {
+                    iconLayout: 'default#image',
+                    iconImageHref: '{{ 'static/icon.png' }}',
+                    iconImageSize: [30, 30],
+                    iconImageOffset: [-15, -15]
+                }
+            );
+                myPlacemark.events.add('click', function (e) {
+                    var index = e.get('target').properties.get('index');
+                    var question = e.get('target').properties.get('question');
+                    var options = e.get('target').properties.get('options');
+                    var rightIndex = e.get('target').properties.get('rightIndex');
+
+                    // Выводим индекс маркера на веб-страницу
+                    document.getElementById('markerIndexDisplay').innerText = 'Index of Clicked Marker: ' + index;
+
+                    // Вызываем метод в Android, передавая данные
+                    window.Android.showFragment(question, options, index, rightIndex);
+                });
+
+                var circle = new ymaps.Circle(
+                    [myPlacemark.geometry.getCoordinates(), 30], {
+                        draggable: false,
+                        fillColor: "#DB709377",
+                        strokeColor: "#990066",
+                        strokeOpacity: 1.0,
+                        strokeWidth: 2
+                    }
+                );
+
+                myMap.geoObjects.add(myPlacemark);
+                myMap.geoObjects.add(circle);
+
+                markers.push(myPlacemark); // Добавляем маркер в массив
+            {% endfor %}
+        }
+    </script>
 </body>
 </html>
